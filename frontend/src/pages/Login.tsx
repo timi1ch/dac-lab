@@ -1,44 +1,49 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { api } from "../api";
+import { FormEvent, useState } from "react";
+import { api, messageOf } from "../api";
+import { Banner, Notice } from "../components";
 
-export default function Login() {
-  const [isRegister, setIsRegister] = useState(false);
+export default function Login({ onLogin }: { onLogin: (token: string, login: string) => void }) {
   const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setError("");
-    try {
-      if (isRegister) {
-        await api.request("/register", { method: "POST", body: JSON.stringify({ login, password }) });
-        alert("Регистрация успешна! Теперь войдите.");
-        setIsRegister(false);
-      } else {
-        const data = await api.request("/login", { method: "POST", body: JSON.stringify({ login, password }) });
-        localStorage.setItem("token", data.access_token);
-        navigate("/dashboard");
-      }
-    } catch (err: any) {
-      setError(err.message);
+    setBusy(true);
+    setNotice(null);
+    const r = await api("/login", { method: "POST", body: { login, password } });
+    setBusy(false);
+    if (r.ok) {
+      onLogin(r.data.access_token, login);
+    } else {
+      setNotice({ ok: false, text: `Ошибка ${r.status}: ${messageOf(r)}` });
     }
-  };
+  }
 
   return (
-    <div style={{ maxWidth: 400, margin: "50px auto", fontFamily: "sans-serif" }}>
-      <h2>{isRegister ? "Регистрация" : "Вход"}</h2>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        <input placeholder="Логин" value={login} onChange={e => setLogin(e.target.value)} required />
-        <input placeholder="Пароль" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-        <button type="submit">{isRegister ? "Зарегистрироваться" : "Войти"}</button>
+    <section className="card narrow">
+      <h1>Вход</h1>
+      <form onSubmit={onSubmit}>
+        <label>
+          Логин
+          <input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" required />
+        </label>
+        <label>
+          Пароль
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
+        </label>
+        <button type="submit" disabled={busy}>
+          {busy ? "Вход…" : "Войти"}
+        </button>
       </form>
-      <p style={{ cursor: "pointer", color: "blue" }} onClick={() => setIsRegister(!isRegister)}>
-        {isRegister ? "Уже есть аккаунт? Войти" : "Нет аккаунта? Зарегистрироваться"}
-      </p>
-    </div>
+      <Banner notice={notice} />
+    </section>
   );
 }

@@ -1,11 +1,7 @@
 from core.application import app
-from api import health, auth, resources
-from db.connection import engine, Base
+from api import health, auth, resource
+from db.connection import Base, engine
 
-# Этот импорт ОБЯЗАТЕЛЕН, чтобы SQLAlchemy увидел твои модели и создал для них таблицы
-import db.models
 
-# Создаем таблицы в базе данных при старте
+# Все модели загружены: создаём отсутствующие таблицы в настроенной базе.
 Base.metadata.create_all(bind=engine)
-
-app.include_router(resources.router)

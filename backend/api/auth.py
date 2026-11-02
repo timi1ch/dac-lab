@@ -1,38 +1,111 @@
 import re
+import secrets
+from datetime import datetime, timedelta, timezone
+
 from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from db.connection import get_db
-from db.models import User
-from core.security import get_password_hash, verify_password, create_access_token
-from schemas.auth import UserAuth, Token
+
 from core.application import app
+from db.connection import User, UserSession, get_db, hashed
+from schemas.auth import UserAuth
 
-# Регулярки по ТЗ
-login_pattern = r"^[a-zA-Z0-9._-]{3,32}$"
-# Минимум 8 символов, заглавная, строчная, цифра и спецсимвол (!@#$%^&* и т.д.)
-password_pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>\/?]).{8,}$"
 
-@app.post("/api/register")
+bearer = HTTPBearer(auto_error=False)
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
+    db: Session = Depends(get_db),
+):
+    user = None
+    if credentials is not None:
+        user = db.scalar(
+            select(User)
+            .join(UserSession, UserSession.user_id == User.id)
+            .where(
+                UserSession.token_hash == hashed(credentials.credentials),
+                UserSession.expires_at > datetime.now(timezone.utc),
+            )
+        )
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Войдите в систему повторно",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
+
+
+@app.post("/api/register", status_code=status.HTTP_201_CREATED)
 def register(user_data: UserAuth, db: Session = Depends(get_db)):
-    if not re.match(login_pattern, user_data.login):
-        raise HTTPException(status_code=422, detail="Логин: от 3 до 32 символов, буквы, цифры, ., _, -")
-    
-    if not re.match(password_pattern, user_data.password):
-        raise HTTPException(status_code=422, detail="Пароль: мин. 8 символов, заглавная, строчная, цифра и спецсимвол")
+    login_pattern = r"^[a-zA-Z0-9._-]{3,32}$"
+    if not re.fullmatch(login_pattern, user_data.login):
+        raise HTTPException (
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Некорректный логин"
+        )
 
-    if db.query(User).filter(User.login == user_data.login).first():
-        raise HTTPException(status_code=409, detail="Пользователь с таким логином уже существует")
-    
-    new_user = User(login=user_data.login, password_hash=get_password_hash(user_data.password))
-    db.add(new_user)
-    db.commit()
-    return {"message": "Пользователь успешно создан"}
+    password = user_data.password
+    if not (
+        len(password) >= 8
+        and any(character.islower() for character in password)
+        and any(character.isupper() for character in password)
+        and any(character in "0123456789" for character in password)
+        and any(character in "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~" for character in password)
+    ):
+        raise HTTPException (
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Пароль не соответствует требованиям"
+        )
 
-@app.post("/api/login", response_model=Token)
+    if db.scalar(select(User).where(User.login == user_data.login)) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Пользователь с таким именем уже существует" 
+        ) 
+    
+    user = User(login=user_data.login, password_hash=hashed(user_data.password))
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        if db.scalar(select(User).where(User.login == user_data.login)) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пользователь с таким именем уже существует",
+            ) from None
+        raise
+
+    return {
+        "message": "Пользователь успешно создан", 
+        "username": user_data.login
+    }
+
+
+@app.post("/api/login")
 def login(credentials: UserAuth, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.login == credentials.login).first()
-    if not user or not verify_password(credentials.password, user.password_hash):
-        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
-    
-    access_token = create_access_token(data={"sub": str(user.id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+    user = db.scalar(select(User).where(User.login == credentials.login))
+    if not user or user.password_hash != hashed(credentials.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Неверный логин или пароль"
+        )
+
+    token = secrets.token_urlsafe(32)
+    db.add(UserSession(
+        token_hash=hashed(token),
+        user_id=user.id,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+    ))
+    db.commit()
+
+    return {
+        "message": "Вход успешно выполнен",
+        "token_type": "bearer",
+        "access_token": token,
+    }
+
