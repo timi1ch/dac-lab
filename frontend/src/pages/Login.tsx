@@ -17,20 +17,20 @@ export default function Login({ onLogin }: { onLogin: (token: string, login: str
     if (r.ok) {
       onLogin(r.data.access_token, login);
     } else {
-      setNotice({ ok: false, text: `Ошибка ${r.status}: ${messageOf(r)}` });
+      setNotice({ ok: false, text: `Error ${r.status}: ${messageOf(r)}` });
     }
   }
 
   return (
     <section className="card narrow">
-      <h1>Вход</h1>
+      <h1>Sign in</h1>
       <form onSubmit={onSubmit}>
         <label>
-          Логин
+          Username
           <input value={login} onChange={(e) => setLogin(e.target.value)} autoComplete="username" required />
         </label>
         <label>
-          Пароль
+          Password
           <input
             type="password"
             value={password}
@@ -40,7 +40,7 @@ export default function Login({ onLogin }: { onLogin: (token: string, login: str
           />
         </label>
         <button type="submit" disabled={busy}>
-          {busy ? "Вход…" : "Войти"}
+          {busy ? "Signing in…" : "Sign in"}
         </button>
       </form>
       <Banner notice={notice} />

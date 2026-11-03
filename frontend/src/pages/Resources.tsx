@@ -7,17 +7,17 @@ export default function Resources({ token }: { token: string | null }) {
   const [items, setItems] = useState<ResourceItem[]>([]);
   const [notice, setNotice] = useState<Notice | null>(null);
 
-  // создание
+  // creation
   const [newTitle, setNewTitle] = useState("");
   const [newContent, setNewContent] = useState("");
 
-  // работа с конкретным ресурсом (ID можно ввести вручную, чтобы проверить отказ)
+  // manage a resource by ID, including denied-access checks
   const [idInput, setIdInput] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [changes, setChanges] = useState<{ title?: string; content?: string }>({});
 
-  // права (только владелец)
+  // permissions (owner only)
   const [perms, setPerms] = useState<PermissionRow[]>([]);
   const [grantLogin, setGrantLogin] = useState("");
   const [grantRead, setGrantRead] = useState(true);
@@ -32,7 +32,7 @@ export default function Resources({ token }: { token: string | null }) {
   const loadList = useCallback(async () => {
     const r = await api<ResourceItem[]>("/resources", { token });
     if (r.ok) setItems(r.data);
-    else show(false, `Ошибка ${r.status}: ${messageOf(r)}`);
+    else show(false, `Error ${r.status}: ${messageOf(r)}`);
   }, [token]);
 
   const loadPerms = useCallback(
@@ -60,9 +60,9 @@ export default function Resources({ token }: { token: string | null }) {
   if (!token) {
     return (
       <section className="card narrow">
-        <h1>Ресурсы</h1>
+        <h1>Resources</h1>
         <p>
-          Сначала <Link to="/login">войдите</Link> (или <Link to="/register">зарегистрируйтесь</Link>).
+          Please <Link to="/login">sign in</Link> (or <Link to="/register">create an account</Link>).
         </p>
       </section>
     );
@@ -76,7 +76,7 @@ export default function Resources({ token }: { token: string | null }) {
       body: { title: newTitle, content: newContent },
     });
     if (r.ok) {
-      show(true, `201 — ресурс #${r.data.id} создан, вы его владелец`);
+      show(true, `201 — resource #${r.data.id} created. You are the owner`);
       setNewTitle("");
       setNewContent("");
       setIdInput(String(r.data.id));
@@ -103,7 +103,7 @@ export default function Resources({ token }: { token: string | null }) {
       setChanges({});
       setTitle(r.data.title);
       setContent(r.data.content);
-      show(true, `${r.status} — чтение разрешено`);
+      show(true, `${r.status} — read access allowed`);
     } else {
       setTitle("");
       setContent("");
@@ -114,11 +114,11 @@ export default function Resources({ token }: { token: string | null }) {
 
   async function updateResource() {
     if (Object.keys(changes).length === 0) {
-      show(false, "Сначала измените название или содержимое.");
+      show(false, "Change the title or content before saving.");
       return;
     }
     const r = await api(`/resources/${id}`, { method: "PUT", token, body: changes });
-    show(r.ok, r.ok ? `${r.status} — изменение выполнено` : `${r.status} — ${messageOf(r)}`);
+    show(r.ok, r.ok ? `${r.status} — resource updated` : `${r.status} — ${messageOf(r)}`);
     if (r.ok) {
       setChanges({});
       loadList();
@@ -127,7 +127,7 @@ export default function Resources({ token }: { token: string | null }) {
 
   async function deleteResource() {
     const r = await api(`/resources/${id}`, { method: "DELETE", token });
-    show(r.ok, r.ok ? `${r.status} — ресурс удалён` : `${r.status} — ${messageOf(r)}`);
+    show(r.ok, r.ok ? `${r.status} — resource deleted` : `${r.status} — ${messageOf(r)}`);
     if (r.ok) {
       setTitle("");
       setContent("");
@@ -145,7 +145,7 @@ export default function Resources({ token }: { token: string | null }) {
     });
     if (r.ok) {
       const any = read || upd || del;
-      show(true, `${r.status} — права пользователя ${login} ${any ? "обновлены" : "отозваны"}`);
+      show(true, `${r.status} — permissions for ${login} ${any ? "updated" : "revoked"}`);
       loadPerms(id);
     } else {
       show(false, `${r.status} — ${messageOf(r)}`);
@@ -163,17 +163,17 @@ export default function Resources({ token }: { token: string | null }) {
       <Banner notice={notice} />
 
       <section className="card">
-        <h2>Доступные мне ресурсы</h2>
+        <h2>Resources I can read</h2>
         {items.length === 0 ? (
-          <p className="muted">Пока ничего нет: создайте ресурс или попросите владельца выдать вам право.</p>
+          <p className="muted">No resources yet. Create one or ask an owner to grant you read access.</p>
         ) : (
           <table>
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Название</th>
-                <th>Владелец</th>
-                <th>Мои права</th>
+                <th>Title</th>
+                <th>Owner</th>
+                <th>My permissions</th>
                 <th />
               </tr>
             </thead>
@@ -182,13 +182,13 @@ export default function Resources({ token }: { token: string | null }) {
                 <tr key={it.id} className={it.id === id ? "row-active" : ""}>
                   <td>{it.id}</td>
                   <td>{it.title}</td>
-                  <td>{it.is_owner ? "вы" : it.owner_login}</td>
+                  <td>{it.is_owner ? "you" : it.owner_login}</td>
                   <td>
                     <PermissionChips perms={it.my_permissions} />
                   </td>
                   <td>
                     <button className="btn-small" onClick={() => select(it)}>
-                      Выбрать
+                      Select
                     </button>
                   </td>
                 </tr>
@@ -200,24 +200,24 @@ export default function Resources({ token }: { token: string | null }) {
 
       <div className="grid-2">
         <section className="card">
-          <h2>Создать ресурс</h2>
+          <h2>Create resource</h2>
           <form onSubmit={createResource}>
             <label>
-              Название
+              Title
               <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} maxLength={200} required />
             </label>
             <label>
-              Содержимое
+              Content
               <textarea value={newContent} onChange={(e) => setNewContent(e.target.value)} rows={3} />
             </label>
-            <button type="submit">Создать</button>
+            <button type="submit">Create</button>
           </form>
         </section>
 
         <section className="card">
-          <h2>Работа с ресурсом</h2>
+          <h2>Manage resource</h2>
           <label>
-            ID ресурса (можно ввести любой — так проверяется отказ)
+            Resource ID (enter any ID to check access)
             <input
               type="number"
               min={1}
@@ -228,18 +228,18 @@ export default function Resources({ token }: { token: string | null }) {
                 setContent("");
                 setChanges({});
               }}
-              placeholder="например, 1"
+              placeholder="e.g. 1"
             />
           </label>
           <label>
-            Название
+            Title
             <input value={title} onChange={(e) => {
               setTitle(e.target.value);
               setChanges((previous) => ({ ...previous, title: e.target.value }));
             }} />
           </label>
           <label>
-            Содержимое
+            Content
             <textarea value={content} onChange={(e) => {
               setContent(e.target.value);
               setChanges((previous) => ({ ...previous, content: e.target.value }));
@@ -247,13 +247,13 @@ export default function Resources({ token }: { token: string | null }) {
           </label>
           <div className="btn-row">
             <button onClick={readResource} disabled={!id}>
-              Читать
+              Read
             </button>
             <button onClick={updateResource} disabled={!id}>
-              Сохранить изменения
+              Save changes
             </button>
             <button className="btn-danger" onClick={deleteResource} disabled={!id}>
-              Удалить
+              Delete
             </button>
           </div>
         </section>
@@ -261,38 +261,38 @@ export default function Resources({ token }: { token: string | null }) {
 
       {ownedSelected && (
         <section className="card">
-          <h2>Права доступа к ресурсу #{ownedSelected.id} «{ownedSelected.title}»</h2>
-          <p className="muted">Вы владелец: только вы можете выдавать и отзывать права.</p>
+          <h2>Permissions for resource #{ownedSelected.id} «{ownedSelected.title}»</h2>
+          <p className="muted">You own this resource. Only you can grant or revoke permissions.</p>
           <form onSubmit={onGrant} className="grant-form">
             <input
               value={grantLogin}
               onChange={(e) => setGrantLogin(e.target.value)}
-              placeholder="логин пользователя"
+              placeholder="Username"
               required
             />
             <label className="check-inline">
               <input type="checkbox" checked={grantRead} onChange={(e) => setGrantRead(e.target.checked)} />
-              чтение
+              read
             </label>
             <label className="check-inline">
               <input type="checkbox" checked={grantUpdate} onChange={(e) => setGrantUpdate(e.target.checked)} />
-              изменение
+              update
             </label>
             <label className="check-inline">
               <input type="checkbox" checked={grantDelete} onChange={(e) => setGrantDelete(e.target.checked)} />
-              удаление
+              delete
             </label>
-            <button type="submit">Выдать / изменить</button>
+            <button type="submit">Save permissions</button>
           </form>
 
           {perms.length === 0 ? (
-            <p className="muted">Другим пользователям права не выданы.</p>
+            <p className="muted">No permissions have been granted to other users.</p>
           ) : (
             <table>
               <thead>
                 <tr>
-                  <th>Пользователь</th>
-                  <th>Права</th>
+                  <th>User</th>
+                  <th>Permissions</th>
                   <th />
                 </tr>
               </thead>
@@ -305,7 +305,7 @@ export default function Resources({ token }: { token: string | null }) {
                     </td>
                     <td>
                       <button className="btn-small btn-danger" onClick={() => grant(p.login, false, false, false)}>
-                        Отозвать
+                        Revoke
                       </button>
                     </td>
                   </tr>

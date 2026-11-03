@@ -6,7 +6,7 @@ from backend.core.config import APP_ENV
 from backend.core.logging import logger
 
 app = FastAPI(
-        title='Дискреционная модель доступа',
+        title='Res2Share API',
         version="1.0.0"
 )
 

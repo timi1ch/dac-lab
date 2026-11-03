@@ -10,7 +10,7 @@ interface Options {
   token?: string | null;
 }
 
-/** Обёртка над fetch: всегда возвращает статус и тело, не бросает исключений. */
+/** Fetch wrapper that returns status and response data without throwing. */
 export async function api<T = any>(path: string, opts: Options = {}): Promise<ApiResult<T>> {
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers["Content-Type"] = "application/json";
@@ -25,29 +25,54 @@ export async function api<T = any>(path: string, opts: Options = {}): Promise<Ap
     try {
       data = await res.json();
     } catch {
-      /* пустое тело ответа */
+      /* empty response body */
     }
     return { status: res.status, ok: res.ok, data };
   } catch {
-    return { status: 0, ok: false, data: { detail: "Нет связи с сервером" } as T };
+    return { status: 0, ok: false, data: { detail: "Unable to reach the server" } as T };
   }
 }
 
-/** Человекочитаемый текст результата запроса. */
-export function messageOf(r: ApiResult, okText = "Готово"): string {
-  if (r.data && typeof r.data.detail === "string") return r.data.detail;
+const serverMessages = new Map<string, string>([
+  ["Пользователь успешно создан", "Account created successfully."],
+  ["Некорректный логин", "Enter a valid username."],
+  ["Пароль не соответствует требованиям", "The password does not meet the requirements."],
+  ["Пользователь с таким именем уже существует", "This username is already taken."],
+  ["Войдите в систему повторно", "Your session has expired. Please sign in again."],
+  ["Неверный логин или пароль", "Incorrect username or password."],
+  ["Вход успешно выполнен", "Signed in successfully."],
+  ["Вы вышли из системы", "Signed out successfully."],
+  ["Ресурс не найден", "Resource not found."],
+  ["Недостаточно прав доступа", "You do not have permission to perform this action."],
+  ["Ресурс обновлён", "Resource updated."],
+  ["Ресурс удалён", "Resource deleted."],
+  ["Пользователь не найден", "User not found."],
+  ["Владелец уже имеет все права", "The owner already has full access."],
+  ["Права обновлены", "Permissions updated."],
+  ["Права отозваны", "Permissions revoked."],
+  ["Внутренняя ошибка сервера", "An unexpected server error occurred."],
+]);
+
+function serverMessage(message: string): string {
+  const nullField = message.match(/^(?:Value error, )?Поле (\w+) не может быть null$/);
+  return serverMessages.get(message) || (nullField ? `${nullField[1]} cannot be null.` : message);
+}
+
+/** Readable result messages. */
+export function messageOf(r: ApiResult, okText = "Done"): string {
+  if (r.data && typeof r.data.detail === "string") return serverMessage(r.data.detail);
   if (r.data && Array.isArray(r.data.detail)) {
     return r.data.detail.map((error: { loc?: (string | number)[]; msg?: string }) => {
       const field = error.loc?.filter((part) => part !== "body").join(".");
-      const message = error.msg === "Field required" ? "обязательное поле" : error.msg || "некорректное значение";
+      const message = error.msg === "Field required" ? "required field" : serverMessage(error.msg || "invalid value");
       return field ? `${field}: ${message}` : message;
     }).join("; ");
   }
-  if (r.data && typeof r.data.message === "string") return r.data.message;
-  return r.ok ? okText : `Ошибка ${r.status}`;
+  if (r.data && typeof r.data.message === "string") return serverMessage(r.data.message);
+  return r.ok ? okText : `Error ${r.status}`;
 }
 
-// Токен хранится в sessionStorage: исчезает при закрытии вкладки.
+// Session storage is cleared when the tab closes.
 export const session = {
   token: (): string | null => sessionStorage.getItem("token"),
   login: (): string | null => sessionStorage.getItem("login"),

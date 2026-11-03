@@ -6,11 +6,11 @@ const LOGIN_OK = /^[A-Za-z0-9._-]{3,32}$/;
 
 function passwordChecks(p: string): [string, boolean][] {
   return [
-    ["минимум 8 символов", p.length >= 8],
-    ["заглавная буква", /\p{Lu}/u.test(p)],
-    ["строчная буква", /\p{Ll}/u.test(p)],
-    ["цифра", /\d/.test(p)],
-    ["специальный символ", /[!-/:-@[-`{-~]/.test(p)],
+    ["at least 8 characters", p.length >= 8],
+    ["an uppercase letter", /\p{Lu}/u.test(p)],
+    ["a lowercase letter", /\p{Ll}/u.test(p)],
+    ["a digit", /\d/.test(p)],
+    ["a special character", /[!-/:-@[-`{-~]/.test(p)],
   ];
 }
 
@@ -24,37 +24,37 @@ export default function Register() {
     e.preventDefault();
     setBusy(true);
     setNotice(null);
-    // Проверки на frontend нужны только для удобства; решение принимает backend.
+    // Frontend checks provide feedback; the backend enforces validation.
     const r = await api("/register", { method: "POST", body: { login, password } });
     setBusy(false);
     if (r.ok) {
-      setNotice({ ok: true, text: `Успешно: ${messageOf(r)}. Теперь можно войти.` });
+      setNotice({ ok: true, text: `${messageOf(r)} You can now sign in.` });
       setPassword("");
     } else {
-      setNotice({ ok: false, text: `Ошибка ${r.status}: ${messageOf(r)}` });
+      setNotice({ ok: false, text: `Error ${r.status}: ${messageOf(r)}` });
     }
   }
 
   return (
     <section className="card narrow">
-      <h1>Регистрация</h1>
+      <h1>Register</h1>
       <form onSubmit={onSubmit}>
         <label>
-          Логин
+          Username
           <input
             value={login}
             onChange={(e) => setLogin(e.target.value)}
             autoComplete="username"
-            placeholder="например, alice_01"
+            placeholder="e.g. alice_01"
             required
           />
         </label>
         <p className={`hint ${login === "" || LOGIN_OK.test(login) ? "" : "hint-bad"}`}>
-          3–32 символа: латинские буквы, цифры, «.», «_», «-»
+          3–32 characters: Latin letters, digits, periods, underscores, and hyphens
         </p>
 
         <label>
-          Пароль
+          Password
           <input
             type="password"
             value={password}
@@ -72,7 +72,7 @@ export default function Register() {
         </ul>
 
         <button type="submit" disabled={busy}>
-          {busy ? "Отправка…" : "Зарегистрироваться"}
+          {busy ? "Creating account…" : "Create account"}
         </button>
       </form>
       <Banner notice={notice} />

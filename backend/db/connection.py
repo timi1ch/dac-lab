@@ -41,11 +41,6 @@ class UserSession(Base):
     expires_at = Column(DateTime(timezone=True), nullable=False)
 
 
-def hashed(value: str) -> str:
-    # Быстрый хеш используется для случайных токенов и проверки старых паролей.
-    return hashlib.sha256(value.encode()).hexdigest()
-
-
 password_hasher = PasswordHasher(
     time_cost=ARGON2_TIME_COST, memory_cost=ARGON2_MEMORY_COST,
     parallelism=ARGON2_PARALLELISM, type=Type.ID,
@@ -61,23 +56,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(password: str, stored: str) -> bool:
-    if stored.startswith("$argon2id$"):
-        try:
-            return password_hasher.verify(stored, password)
-        except (VerificationError, InvalidHashError):
-            return False
-    # Совместимость с аккаунтами, созданными до перехода на Argon2id.
-    if stored.startswith("scrypt$"):
-        try:
-            _, salt, expected = stored.split("$")
-            actual = hashlib.scrypt(
-                password.encode(), salt=bytes.fromhex(salt),
-                n=2**17, r=8, p=1, maxmem=256*1024*1024,
-            ).hex()
-            return hmac.compare_digest(actual, expected)
-        except (ValueError, TypeError):
-            return False
-    return hmac.compare_digest(hashed(password), stored)
+    if not stored.startswith("$argon2id$"):
+        return False
+    try:
+        return password_hasher.verify(stored, password)
+    except (VerificationError, InvalidHashError):
+        return False
 
 
 def get_db():

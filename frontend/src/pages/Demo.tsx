@@ -16,7 +16,7 @@ function suffix() {
   return Math.random().toString(36).slice(2, 8);
 }
 
-/** Регистрирует пользователя и входит; возвращает токен. */
+/** Register and sign in a user, then return the token. */
 async function registerAndLogin(login: string): Promise<{ token: string | null; statuses: number[] }> {
   const reg = await api("/register", { method: "POST", body: { login, password: PASSWORD } });
   const log = await api("/login", { method: "POST", body: { login, password: PASSWORD } });
@@ -59,7 +59,7 @@ export default function Demo() {
     const reader = `reader_${s}`;
     const stranger = `stranger_${s}`;
 
-    // 1. три пользователя
+    // 1. Create three users
     const [o, rd, st] = [
       await registerAndLogin(owner),
       await registerAndLogin(reader),
@@ -67,11 +67,11 @@ export default function Demo() {
     ];
     const usersOk = [o, rd, st].every((u) => u.token && u.statuses[0] === 201 && u.statuses[1] === 200);
     add({
-      title: "Регистрация и вход трёх пользователей",
-      request: `POST /api/register + POST /api/login для ${owner}, ${reader}, ${stranger}`,
+      title: "Register and sign in three users",
+      request: `POST /api/register + POST /api/login for ${owner}, ${reader}, ${stranger}`,
       expected: 201,
       status: usersOk ? 201 : 0,
-      note: usersOk ? "Владелец, читатель и посторонний созданы и авторизованы" : "Не удалось создать пользователей",
+      note: usersOk ? "Owner, reader, and outsider accounts are ready" : "Could not create the demo accounts",
       pass: usersOk,
     });
     if (!usersOk) {
@@ -83,18 +83,18 @@ export default function Demo() {
     const tReader = rd.token!;
     const tStranger = st.token!;
 
-    // 2. владелец создаёт ресурс
+    // 2. The owner creates a resource
     const created = await check(
-      "Владелец создаёт ресурс",
+      "The owner creates a resource",
       `POST /api/resources  (${owner})`,
       201,
       () =>
         api("/resources", {
           method: "POST",
           token: tOwner,
-          body: { title: "Квартальный отчёт", content: "Конфиденциальный текст отчёта" },
+          body: { title: "Quarterly report", content: "Confidential report content" },
         }),
-      "Ресурс создан, владелец — owner",
+      "Resource created and assigned to the owner",
     );
     if (!created.ok) {
       setRunning(false);
@@ -108,33 +108,33 @@ export default function Demo() {
     const grant = (can_read: boolean, can_update: boolean, can_delete: boolean, token = tOwner, login = reader) => () =>
       api(`${url}/permissions`, { method: "PUT", token, body: { login, can_read, can_update, can_delete } });
 
-    // 3. посторонний не имеет доступа
-    await check("Пользователь без права пытается прочитать", `GET /api/resources/${rid}  (${stranger})`, 403, read(tStranger), "");
-    // 4–5. выдача права чтения и чтение
-    await check("Владелец выдаёт читателю право на чтение", `PUT /api/resources/${rid}/permissions  (${owner} → ${reader}, чтение)`, 200, grant(true, false, false), "Право чтения выдано");
-    await check("Читатель читает ресурс", `GET /api/resources/${rid}  (${reader})`, 200, read(tReader), "Доступ разрешён");
-    // 6–7. других прав нет
+    // 3. The outsider has no access
+    await check("An outsider attempts to read the resource", `GET /api/resources/${rid}  (${stranger})`, 403, read(tStranger), "");
+    // 4–5. Grant read permission and read
+    await check("The owner grants read access", `PUT /api/resources/${rid}/permissions  (${owner} → ${reader}, read)`, 200, grant(true, false, false), "Read access granted");
+    await check("The reader opens the resource", `GET /api/resources/${rid}  (${reader})`, 200, read(tReader), "Access allowed");
+    // 6–7. Other permissions remain denied
     await check(
-      "Читатель пытается изменить ресурс",
+      "The reader attempts to update the resource",
       `PUT /api/resources/${rid}  (${reader})`,
       403,
-      () => api(url, { method: "PUT", token: tReader, body: { content: "взлом" } }),
+      () => api(url, { method: "PUT", token: tReader, body: { content: "Unauthorized update" } }),
       "",
     );
-    await check("Читатель пытается удалить ресурс", `DELETE /api/resources/${rid}  (${reader})`, 403, () => api(url, { method: "DELETE", token: tReader }), "");
-    // 8–9. дополнительное право изменения
-    await check("Владелец добавляет читателю право на изменение", `PUT /api/resources/${rid}/permissions  (${owner} → ${reader}, чтение + изменение)`, 200, grant(true, true, false), "Права обновлены");
+    await check("The reader attempts to delete the resource", `DELETE /api/resources/${rid}  (${reader})`, 403, () => api(url, { method: "DELETE", token: tReader }), "");
+    // 8–9. Grant update permission
+    await check("The owner grants update access", `PUT /api/resources/${rid}/permissions  (${owner} → ${reader}, read + update)`, 200, grant(true, true, false), "Permissions updated");
     await check(
-      "Читатель изменяет ресурс",
+      "The reader updates the resource",
       `PUT /api/resources/${rid}  (${reader})`,
       200,
-      () => api(url, { method: "PUT", token: tReader, body: { content: "Текст, исправленный читателем" } }),
-      "Изменение разрешено",
+      () => api(url, { method: "PUT", token: tReader, body: { content: "Content updated by the reader" } }),
+      "Update allowed",
     );
-    // 10–11. посторонний по-прежнему без доступа, получатель права не может передавать дальше
-    await check("Посторонний всё ещё не имеет доступа", `GET /api/resources/${rid}  (${stranger})`, 403, read(tStranger), "");
+    // 10–11. Deny the outsider and prevent permission delegation
+    await check("The outsider still has no access", `GET /api/resources/${rid}  (${stranger})`, 403, read(tStranger), "");
     await check(
-      "Читатель пытается выдать права постороннему",
+      "The reader attempts to grant access to the outsider",
       `PUT /api/resources/${rid}/permissions  (${reader} → ${stranger})`,
       403,
       grant(true, false, false, tReader, stranger),
@@ -149,14 +149,14 @@ export default function Demo() {
 
   return (
     <section className="card">
-      <h1>Демо-сценарий дискреционной модели</h1>
+      <h1>Access control walkthrough</h1>
       <p>
-        Кнопка создаёт трёх новых пользователей (владелец, читатель, посторонний) и по шагам проверяет:
-        владелец выдаёт право → получатель получает доступ → пользователь без права получает отказ{" "}
-        <b>403</b>. Все запросы идут на настоящий backend, решение принимает сервер.
+        This scenario creates three users (an owner, a reader, and an outsider) and verifies that
+        the owner grants access → the recipient can read → the outsider receives{" "}
+        <b>403</b>. Every request is sent to the backend, which enforces access control.
       </p>
       <button onClick={run} disabled={running}>
-        {running ? "Выполняется…" : steps.length ? "Запустить заново" : "Запустить сценарий"}
+        {running ? "Running…" : steps.length ? "Run again" : "Run scenario"}
       </button>
 
       {steps.length > 0 && (
@@ -164,10 +164,10 @@ export default function Demo() {
           <thead>
             <tr>
               <th>#</th>
-              <th>Шаг</th>
-              <th>Ожидается</th>
-              <th>Получено</th>
-              <th>Итог</th>
+              <th>Step</th>
+              <th>Expected</th>
+              <th>Actual</th>
+              <th>Result</th>
             </tr>
           </thead>
           <tbody>
@@ -185,7 +185,7 @@ export default function Demo() {
                     {st.status || "—"}
                   </span>
                 </td>
-                <td>{st.pass ? <span className="pass">✓ верно</span> : <span className="fail">✗ ошибка</span>}</td>
+                <td>{st.pass ? <span className="pass">✓ Passed</span> : <span className="fail">✗ Failed</span>}</td>
               </tr>
             ))}
           </tbody>
@@ -194,7 +194,7 @@ export default function Demo() {
 
       {finished && (
         <div className={`banner ${allPass ? "banner-ok" : "banner-err"}`}>
-          {allPass ? "Все проверки сценария пройдены." : "Есть отклонения от ожидаемого результата."}
+          {allPass ? "All scenario checks passed." : "Some checks did not match the expected result."}
         </div>
       )}
     </section>

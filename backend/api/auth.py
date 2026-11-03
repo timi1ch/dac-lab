@@ -101,7 +101,7 @@ def login(credentials: UserAuth, db: Session = Depends(get_db)):
             detail="Неверный логин или пароль"
         )
 
-    if not user.password_hash.startswith("$argon2id$") or password_hasher.check_needs_rehash(user.password_hash):
+    if password_hasher.check_needs_rehash(user.password_hash):
         user.password_hash = hash_password(credentials.password)
 
     token = secrets.token_urlsafe(32)

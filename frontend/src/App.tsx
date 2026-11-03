@@ -21,7 +21,7 @@ export default function App() {
   async function handleLogout() {
     const result = await api("/logout", { method: "POST", token });
     if (!result.ok && result.status !== 401) {
-      window.alert("Не удалось завершить сессию на сервере. Повторите выход.");
+      window.alert("Could not end your session. Please try signing out again.");
       return;
     }
     session.clear();
@@ -34,23 +34,23 @@ export default function App() {
     <>
       <header className="topbar">
         <div className="topbar-inner">
-          <strong className="brand">Лаб. 4 · Дискреционная модель</strong>
+          <strong className="brand">Res2Share</strong>
           <nav>
-            <NavLink to="/register">Регистрация</NavLink>
-            <NavLink to="/login">Вход</NavLink>
-            <NavLink to="/resources">Ресурсы</NavLink>
-            <NavLink to="/demo">Демо-сценарий</NavLink>
+            <NavLink to="/register">Register</NavLink>
+            <NavLink to="/login">Sign in</NavLink>
+            <NavLink to="/resources">Resources</NavLink>
+            <NavLink to="/demo">Walkthrough</NavLink>
           </nav>
           <div className="who">
             {login ? (
               <>
                 <span>{login}</span>
                 <button className="btn-link" onClick={handleLogout}>
-                  Выйти
+                  Sign out
                 </button>
               </>
             ) : (
-              <span className="muted">не авторизован</span>
+              <span className="muted">Not signed in</span>
             )}
           </div>
         </div>

@@ -15,9 +15,9 @@ export function Banner({ notice }: { notice: Notice | null }) {
 }
 
 const LABELS: [keyof PermissionFlags, string][] = [
-  ["can_read", "чтение"],
-  ["can_update", "изменение"],
-  ["can_delete", "удаление"],
+  ["can_read", "read"],
+  ["can_update", "update"],
+  ["can_delete", "delete"],
 ];
 
 export function PermissionChips({ perms }: { perms: PermissionFlags }) {
