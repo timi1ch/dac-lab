@@ -1,4 +1,4 @@
-from core.application import app
+from backend.core.application import app
 
 @app.get("/api/health")
 def health_check():

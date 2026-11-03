@@ -1,22 +1,21 @@
 from logging.config import fileConfig
-import os
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 # Регистрируем ВСЕ модели, чтобы Alembic их увидел.
-from db.connection import Base, DATABASE_URL  # noqa: F401
-import db.resources  # noqa: F401  (регистрирует Resource и ResourcePermission)
+from backend.db.connection import Base, DATABASE_URL
+import backend.db.resources  # Регистрирует модели ресурсов и прав.
 
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Итоговый URL берём из env (переопределяет пустой alembic.ini).
 config.set_main_option(
     "sqlalchemy.url",
-    os.getenv("DATABASE_URL", DATABASE_URL),
+    DATABASE_URL.replace("%", "%%"),
 )
 
 target_metadata = Base.metadata

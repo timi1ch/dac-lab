@@ -15,6 +15,7 @@ export default function Resources({ token }: { token: string | null }) {
   const [idInput, setIdInput] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [changes, setChanges] = useState<{ title?: string; content?: string }>({});
 
   // права (только владелец)
   const [perms, setPerms] = useState<PermissionRow[]>([]);
@@ -43,6 +44,11 @@ export default function Resources({ token }: { token: string | null }) {
   );
 
   useEffect(() => {
+    setItems([]);
+    setIdInput("");
+    setTitle("");
+    setContent("");
+    setChanges({});
     if (token) loadList();
   }, [token, loadList]);
 
@@ -74,6 +80,7 @@ export default function Resources({ token }: { token: string | null }) {
       setNewTitle("");
       setNewContent("");
       setIdInput(String(r.data.id));
+      setChanges({});
       setTitle(r.data.title);
       setContent(r.data.content);
       loadList();
@@ -83,6 +90,7 @@ export default function Resources({ token }: { token: string | null }) {
   }
 
   function select(item: ResourceItem) {
+    setChanges({});
     setIdInput(String(item.id));
     setTitle("");
     setContent("");
@@ -92,20 +100,29 @@ export default function Resources({ token }: { token: string | null }) {
   async function readResource() {
     const r = await api<ResourceDetail>(`/resources/${id}`, { token });
     if (r.ok) {
+      setChanges({});
       setTitle(r.data.title);
       setContent(r.data.content);
       show(true, `${r.status} — чтение разрешено`);
     } else {
       setTitle("");
       setContent("");
+      setChanges({});
       show(false, `${r.status} — ${messageOf(r)}`);
     }
   }
 
   async function updateResource() {
-    const r = await api(`/resources/${id}`, { method: "PUT", token, body: { title, content } });
+    if (Object.keys(changes).length === 0) {
+      show(false, "Сначала измените название или содержимое.");
+      return;
+    }
+    const r = await api(`/resources/${id}`, { method: "PUT", token, body: changes });
     show(r.ok, r.ok ? `${r.status} — изменение выполнено` : `${r.status} — ${messageOf(r)}`);
-    if (r.ok) loadList();
+    if (r.ok) {
+      setChanges({});
+      loadList();
+    }
   }
 
   async function deleteResource() {
@@ -114,6 +131,8 @@ export default function Resources({ token }: { token: string | null }) {
     if (r.ok) {
       setTitle("");
       setContent("");
+      setChanges({});
+      setIdInput("");
       loadList();
     }
   }
@@ -203,17 +222,28 @@ export default function Resources({ token }: { token: string | null }) {
               type="number"
               min={1}
               value={idInput}
-              onChange={(e) => setIdInput(e.target.value)}
+              onChange={(e) => {
+                setIdInput(e.target.value);
+                setTitle("");
+                setContent("");
+                setChanges({});
+              }}
               placeholder="например, 1"
             />
           </label>
           <label>
             Название
-            <input value={title} onChange={(e) => setTitle(e.target.value)} />
+            <input value={title} onChange={(e) => {
+              setTitle(e.target.value);
+              setChanges((previous) => ({ ...previous, title: e.target.value }));
+            }} />
           </label>
           <label>
             Содержимое
-            <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={3} />
+            <textarea value={content} onChange={(e) => {
+              setContent(e.target.value);
+              setChanges((previous) => ({ ...previous, content: e.target.value }));
+            }} rows={3} />
           </label>
           <div className="btn-row">
             <button onClick={readResource} disabled={!id}>

@@ -2,11 +2,11 @@ from fastapi import Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api.auth import get_current_user
-from core.application import app
-from db import resources as storage
-from db.connection import User, get_db
-from schemas.resources import PermissionGrant, ResourceCreate, ResourceUpdate
+from backend.api.auth import get_current_user
+from backend.core.application import app
+from backend.db import resources as storage
+from backend.db.connection import User, get_db
+from backend.schemas.resources import PermissionGrant, ResourceCreate, ResourceUpdate
 
 
 def permissions_for(resource, user, db):

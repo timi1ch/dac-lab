@@ -4,7 +4,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import relationship
 
-from db.connection import Base, User
+from backend.db.connection import Base, User
 
 
 class Resource(Base):

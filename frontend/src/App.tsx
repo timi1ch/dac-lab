@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
-import { session } from "./api";
+import { api, session } from "./api";
 import Demo from "./pages/Demo";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -18,7 +18,12 @@ export default function App() {
     navigate("/resources");
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    const result = await api("/logout", { method: "POST", token });
+    if (!result.ok && result.status !== 401) {
+      window.alert("Не удалось завершить сессию на сервере. Повторите выход.");
+      return;
+    }
     session.clear();
     setToken(null);
     setLogin(null);

@@ -1,7 +1,8 @@
-from core.application import app
-from api import health, auth, resource
-from db.connection import Base, engine
+from backend.core.application import app
+from backend.api import health, auth, resource
 
 
-# Все модели загружены: создаём отсутствующие таблицы в настроенной базе.
-Base.metadata.create_all(bind=engine)
+if __name__ == "__main__":
+    import uvicorn
+    from backend.core.config import PORT
+    uvicorn.run("backend.main:app", host="0.0.0.0", port=PORT)

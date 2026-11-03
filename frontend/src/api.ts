@@ -36,6 +36,13 @@ export async function api<T = any>(path: string, opts: Options = {}): Promise<Ap
 /** Человекочитаемый текст результата запроса. */
 export function messageOf(r: ApiResult, okText = "Готово"): string {
   if (r.data && typeof r.data.detail === "string") return r.data.detail;
+  if (r.data && Array.isArray(r.data.detail)) {
+    return r.data.detail.map((error: { loc?: (string | number)[]; msg?: string }) => {
+      const field = error.loc?.filter((part) => part !== "body").join(".");
+      const message = error.msg === "Field required" ? "обязательное поле" : error.msg || "некорректное значение";
+      return field ? `${field}: ${message}` : message;
+    }).join("; ");
+  }
   if (r.data && typeof r.data.message === "string") return r.data.message;
   return r.ok ? okText : `Ошибка ${r.status}`;
 }
