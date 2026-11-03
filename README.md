@@ -99,7 +99,7 @@ Check the services:
 docker compose ps -a
 ```
 
-Open **Demo scenario** in the web application to create three demonstration accounts and exercise the permission model. The interface currently uses Russian labels.
+Open **Demo scenario** in the web application to create three demonstration accounts and exercise the permission model. The interface currently uses Engilsh labels.
 
 Stop the application:
 
