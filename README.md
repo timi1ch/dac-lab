@@ -128,7 +128,7 @@ Only the owner can assign permissions. Sending all three flags as `false` revoke
 
 ```mermaid
 flowchart LR
-    Browser[Browser] --> Frontend[React / Vite :5173]
+    Browser[Browser] --> Frontend[React / Vite]
     Frontend -->|/api proxy| Backend[FastAPI]
     Backend -->|SQLAlchemy| Database[(PostgreSQL)]
     Migrations[Alembic migrations] --> Database
